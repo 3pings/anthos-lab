@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+    name: message-board
+    labels:
+        app: message-board
+        name: message-board
+spec:
+    containers:
+    - name: message-board
+      image: michzimm/message_board:version1
+      volumeMounts:
+      - name: mb-volume
+        mountPath: /sqldb
+      ports:
+      - containerPort: 5000
+      imagePullPolicy: Always
+    volumes:
+      - name: mb-volume
+        persistentVolumeClaim:
+          claimName: mboard-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: message-board
+  labels:
+    name: message-board
+  namespace: default
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 5000
+  selector:
+    name: message-board
+  loadBalancerIP: 10.139.16.17

@@ -1,0 +1,18 @@
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hxcsitoken
+type: string
+data:
+  token: ZXlKaGJHY2lPaUpJVXpJMU5pSjkuZXlKemRXSWlPaUoxYzJWeWN5OWhaRzFwYmlJc0luVnpaWElpT2lKaFpHMXBiaUlzSW14aFltVnNjeUk2ZTMwc0luTmpiM0JsSWpvaVVrVkJSQ3hOVDBSSlJsa2lMQ0pwYzNOMVpXUkJkQ0k2TVRVM01UZzBOamM0TmpneE1Td2lkRzlyWlc1TWFXWmxWR2x0WlNJNkxURjkuWi1sQkdjVHlGbFhVYXB2dzZzQ3hkaTM2Tks2UlVDc1hYc3dxWXZ2WGtlOA==
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hxcsi-config
+data:
+  hxapi_url: "10.139.11.10"
+  hxapi_iscsiurl: "10.139.11.10"
+  hxapi_image: "3pings/hxcsi:1.0.rel.4.0.418.git.468fb557"

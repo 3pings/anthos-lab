@@ -1,0 +1,78 @@
+
+---
+# This YAML file contains attacher & csi driver API objects,
+# which are necessary to run external csi attacher for hxcsi plugin.
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: csi-attacher-hxcsi
+  labels:
+    app: csi-attacher-hxcsi
+spec:
+  selector:
+    app: csi-attacher-hxcsi
+  ports:
+    - name: dummy
+      port: 12346
+
+---
+kind: StatefulSet
+apiVersion: apps/v1beta1
+metadata:
+  name: csi-attacher-hxcsi
+spec:
+  serviceName: "csi-attacher-hxcsi"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: csi-attacher-hxcsi
+    spec:
+      serviceAccount: csi-attacher
+      containers:
+        - name: csi-attacher
+          image: quay.io/k8scsi/csi-attacher:v1.0.1
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: hxcsi
+          image: 3pings/hxcsi:1.0.rel.4.0.418.git.468fb557
+          args :
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: X_CSI_DEBUG
+              value: "true"
+            - name: CSI_ENDPOINT
+              value: unix://plugin/csi.sock
+            - name: CSI_HX_REST_API_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: hxcsi-config
+                  key: hxapi_url
+            - name: CSI_HX_ISCSI_TARGET_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: hxcsi-config
+                  key: hxapi_iscsiurl
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /plugin
+      imagePullSecrets:
+        - name: hxcsi-dockerimage-secret
+      volumes:
+        - name: socket-dir
+          emptyDir:

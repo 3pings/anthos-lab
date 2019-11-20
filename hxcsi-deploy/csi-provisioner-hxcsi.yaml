@@ -1,0 +1,101 @@
+
+---
+# This YAML file contains attacher & csi driver API objects,
+# which are necessary to run external csi provisioner for cinder.
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: csi-provisioner-hxcsi
+  labels:
+    app: csi-provisioner-hxcsi
+spec:
+  selector:
+    app: csi-provisioner-hxcsi
+  ports:
+    - name: dummy
+      port: 12345
+
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: csi-provisioner-hxcsi
+spec:
+  serviceName: "csi-provisioner-hxcsi"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csi-provisioner-hxcsi
+  template:
+    metadata:
+      labels:
+        app: csi-provisioner-hxcsi
+    spec:
+      serviceAccount: csi-provisioner
+      containers:
+        - name: csi-provisioner
+          image: quay.io/k8scsi/csi-provisioner:v1.0.1
+          args:
+            - "--provisioner=csi-hxcsi"
+            - "--csi-address=$(ADDRESS)"
+            - "--connection-timeout=15s"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: hxcsi
+          image: 3pings/hxcsi:1.0.rel.4.0.418.git.468fb557
+          args :
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: X_CSI_DEBUG
+              value: "true"
+            - name: X_CSI_MODE
+              value: "controller"
+            - name: CSI_ENDPOINT
+              value: unix://plugin/csi.sock
+            - name: CSI_HX_REST_API_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: hxcsi-config
+                  key: hxapi_url
+            - name: CSI_HX_ISCSI_TARGET_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: hxcsi-config
+                  key: hxapi_iscsiurl
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /plugin
+            - name: tmp
+              mountPath: /tmp
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs
+            - name: hxapitoken
+              mountPath: "/secrets/hxapi"
+      imagePullSecrets:
+        - name: hxcsi-dockerimage-secret
+      volumes:
+        - name: socket-dir
+          emptyDir:
+        - name: tmp
+          hostPath:
+              path: /tmp
+              type: Directory
+        - name: ssl-certs
+          hostPath:
+              path: /etc/ssl/certs
+              type: Directory
+        - name: hxapitoken
+          secret:
+            secretName: hxcsitoken
